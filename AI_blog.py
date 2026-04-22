@@ -19,11 +19,11 @@ from uuid import uuid4
 
 import streamlit as st
 from bs4 import BeautifulSoup
-from langchain import hub
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -76,6 +76,10 @@ RERANK_TOP_K = 5
 st.set_page_config(page_title="AI Blog Search", page_icon=":mag_right:")
 st.header(":blue[Agentic RAG with LangGraph:] :green[AI Blog Search]")
 
+DEFAULT_MODEL_TEMPERATURE = 0.2
+DEFAULT_MODEL_STREAMING = True
+DEFAULT_MODEL_MAX_TOKENS = 1500
+
 
 def init_session_state():
     """
@@ -96,6 +100,9 @@ def init_session_state():
         "last_loaded_url": "",
         "chat_history": [],
         "conversation_memory": "",
+        "model_temperature": DEFAULT_MODEL_TEMPERATURE,
+        "model_streaming": DEFAULT_MODEL_STREAMING,
+        "model_max_tokens": DEFAULT_MODEL_MAX_TOKENS,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -150,11 +157,16 @@ def create_chat_model():
     - Gemini 模式：使用 ChatGoogleGenerativeAI
     - DeepSeek 模式：通过 OpenAI 兼容接口包装为 ChatOpenAI
     """
+    temperature = float(st.session_state.model_temperature)
+    streaming = bool(st.session_state.model_streaming)
+    max_tokens = int(st.session_state.model_max_tokens)
+
     if MODEL_PROVIDER == "gemini":
         return ChatGoogleGenerativeAI(
             api_key=st.session_state.gemini_api_key,
-            temperature=0,
-            streaming=True,
+            temperature=temperature,
+            streaming=streaming,
+            max_output_tokens=max_tokens,
             model=GEMINI_CHAT_MODEL,
         )
 
@@ -170,8 +182,9 @@ def create_chat_model():
             api_key=st.session_state.deepseek_api_key,
             base_url=DEEPSEEK_BASE_URL,
             model=DEEPSEEK_CHAT_MODEL,
-            temperature=0,
-            streaming=True,
+            temperature=temperature,
+            streaming=streaming,
+            max_tokens=max_tokens,
         )
 
     raise ValueError(f"Unsupported MODEL_PROVIDER: {MODEL_PROVIDER}")
@@ -509,7 +522,33 @@ def generate(state):
     memory_summary = st.session_state.get("conversation_memory", "")
     recent_history = get_recent_chat_history_text()
 
-    prompt_template = hub.pull("rlm/rag-prompt")
+    prompt_template = PromptTemplate(
+        template="""
+你是一名高质量的博客问答助手。你的任务是严格基于检索到的上下文，给出内容充分、结构清晰、解释到位的中文回答。
+
+回答要求：
+1. 必须优先依据提供的 context 回答，不能脱离上下文编造事实。
+2. 如果 context 足够，请给出详细回答，不要只给一句简短结论。
+3. 优先使用以下结构：
+   - 核心结论
+   - 详细解释
+   - 关键依据
+   - 补充说明或局限
+4. 当问题涉及概念、流程、机制、区别、优缺点时，要分点展开。
+5. 如果上下文中信息不足，要明确说明“根据当前检索内容，信息有限”，并指出已知部分。
+6. 如果用户问题与前文对话有关，可以结合对话记忆理解指代，但最终结论仍必须以 context 为依据。
+7. 除非用户要求非常简短，否则尽量输出完整、可读、信息密度高的答案。
+
+对话记忆与当前问题：
+{question}
+
+检索到的上下文：
+{context}
+
+请直接输出中文答案：
+""",
+        input_variables=["context", "question"],
+    )
     output_parser = StrOutputParser()
     rag_chain = prompt_template | create_chat_model() | output_parser
 
@@ -521,6 +560,51 @@ def generate(state):
 
     response = rag_chain.invoke({"context": docs, "question": augmented_question})
     return {"messages": [response]}
+
+
+def render_model_settings():
+    """
+    在页面上渲染模型参数设置弹出层。
+
+    这些参数会写入 session_state，并在 create_chat_model() 中生效。
+    """
+    st.caption(
+        f"Current settings: temperature={st.session_state.model_temperature}, "
+        f"streaming={st.session_state.model_streaming}, "
+        f"max_tokens={st.session_state.model_max_tokens}"
+    )
+
+    with st.popover("Model Settings"):
+        st.markdown("#### Generation Config")
+        st.slider(
+            "Temperature",
+            min_value=0.0,
+            max_value=1.5,
+            value=float(st.session_state.model_temperature),
+            step=0.05,
+            key="model_temperature",
+            help="温度越高，回答越发散；越低，回答越稳定。建议 0.1 - 0.4。",
+        )
+        st.checkbox(
+            "Streaming",
+            value=bool(st.session_state.model_streaming),
+            key="model_streaming",
+            help="是否启用流式输出。",
+        )
+        st.number_input(
+            "Max Tokens",
+            min_value=256,
+            max_value=8192,
+            value=int(st.session_state.model_max_tokens),
+            step=128,
+            key="model_max_tokens",
+            help="限制单次回答的最大输出长度。数值更大通常能输出更完整的回答。",
+        )
+        if st.button("Reset Model Settings"):
+            st.session_state.model_temperature = DEFAULT_MODEL_TEMPERATURE
+            st.session_state.model_streaming = DEFAULT_MODEL_STREAMING
+            st.session_state.model_max_tokens = DEFAULT_MODEL_MAX_TOKENS
+            st.rerun()
 
 
 def get_recent_chat_history_text(limit: int = 6) -> str:
@@ -988,6 +1072,7 @@ def main():
     """
     init_session_state()
     set_sidebar()
+    render_model_settings()
 
     if not required_config_ready():
         st.warning(f"Please configure the required keys for {get_provider_label()} in the sidebar first.")
