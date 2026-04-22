@@ -8,7 +8,7 @@
 **文件**：
 - 主程序: [AI_blog.py](AI_blog.py)
 
-**快速概览**
+**主要内容**
 - 将页面标题与正文分别作为两个 collection 存入 Qdrant（TITLE_COLLECTION / BODY_COLLECTION）。
 - 标题用于主题级召回，正文切块用于细粒度检索。
 - 检索后通过轻量级 Rerank（query embedding 与候选文档 embedding 的余弦相似度）排序，标题结果附加权重以提升主题命中率。
@@ -35,7 +35,7 @@
 - `generate(state)` / `rewrite(state)` / `agent(state, tools)` / `grade_documents(state)`：LangGraph 各节点实现检索判定、改写与最终生成逻辑。
 - `add_documents_to_qdrant(url, client, title_db, body_db)`：将一篇文章写入 Qdrant（写入前会删除同一 URL 的旧数据）。
 
-**配置项（在代码中）**
+**配置项**
 - `MODEL_PROVIDER`: 选择 `gemini` 或 `deepseek` 分支（默认 `deepseek`）。
 - Qdrant: `qdrant_host`, `qdrant_api_key`（在 Streamlit 侧栏输入并保存）。
 - 模型 API Key: Gemini 或 DeepSeek 的 API Key（在侧栏输入）。
@@ -69,10 +69,10 @@ streamlit run AI_blog.py
 - Qdrant 连接失败：确认 `qdrant_host` 包含主机名或 URL，API Key 有效且 Qdrant 服务可达。
 - 重复导入：系统在导入前会删除同一 URL 的旧向量。
 
-**扩展建议**
+**后续更新计划**
 - 支持多篇文章的批量导入与索引管理。
 - 使用更强的 reranker（交互式 cross-encoder）以提升精度。
 - 添加基于用户偏好的检索重排序（如偏好技术深度或概览）。
 - 将客户端向量化替换为更高效的批量向量化流程以提升吞吐。
 
-如果你希望我把本 README 进一步写成 `requirements.txt`、部署脚本或把 README 转为英文版本，我可以继续完成这些任务。
+
