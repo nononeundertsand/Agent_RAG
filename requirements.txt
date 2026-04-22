@@ -1,0 +1,22 @@
+# Requirements for Agent_RAG
+# Core
+streamlit
+beautifulsoup4
+qdrant-client
+langchain
+langgraph
+
+# Tokenization / utils
+tiktoken
+typing-extensions
+requests
+
+# LangChain related extensions (optional; used depending on MODEL_PROVIDER)
+langchain-community
+langchain-google-genai
+langchain-qdrant
+langchain-openai
+
+# Optional/local embedding
+fastembed
+openai
