@@ -1,3 +1,60 @@
-/.vscode
-/model_cache
-/__pycache__
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets.*
+
+# Python cache / runtime
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local app state and model cache
+chat_sessions.json
+model_cache/
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

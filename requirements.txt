@@ -1,9 +1,12 @@
 # Requirements for Agent_RAG
-# Core
-streamlit
+# Core API
+fastapi
+uvicorn[standard]
 beautifulsoup4
 qdrant-client
 langchain
+langchain-core
+langchain-text-splitters
 langgraph
 
 # Tokenization / utils
